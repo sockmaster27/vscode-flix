@@ -95,12 +95,12 @@ export function initialiseSocket({ uri, onOpen, onClose }: InitialiseSocketInput
     onOpen && setTimeout(onOpen!, 0)
   })
 
-  webSocket.on('close', () => {
+  webSocket.on('close', async () => {
     webSocketOpen = false
     if (lastManualStopTimestamp + 15000 < Date.now()) {
       // This happends when the connections breaks unintentionally
       console.log(USER_MESSAGE.CONNECTION_LOST())
-      tryToConnect({ uri, onOpen, onClose }, 5).then(connected => {
+      await tryToConnect({ uri, onOpen, onClose }, 5).then(connected => {
         if (!connected) {
           console.log(USER_MESSAGE.CONNECTION_LOST_RESTARTING())
           sendNotification(jobs.Request.internalRestart)
@@ -111,11 +111,11 @@ export function initialiseSocket({ uri, onOpen, onClose }: InitialiseSocketInput
     onClose && setTimeout(onClose!, 0)
   })
 
-  webSocket.on('message', (data: string) => {
+  webSocket.on('message', async (data: string) => {
     const flixResponse: FlixResponse = JSON.parse(data)
     const job: jobs.EnqueuedJob = jobs.getJob(flixResponse.id)
 
-    handleResponse(flixResponse, job)
+    await handleResponse(flixResponse, job)
   })
 }
 
@@ -196,12 +196,12 @@ export function sendMessage(job: jobs.EnqueuedJob, retries = 0) {
   webSocket.send(JSON.stringify(job))
 }
 
-function handleResponse(flixResponse: FlixResponse, job: jobs.EnqueuedJob) {
+async function handleResponse(flixResponse: FlixResponse, job: jobs.EnqueuedJob) {
   if (flixResponse.status === StatusCode.CompilerError) {
-    clearDiagnostics()
+    await clearDiagnostics()
     handleCrash(flixResponse)
   } else if (job.request === jobs.Request.lspCheck) {
-    lspCheckResponseHandler(flixResponse)
+    await lspCheckResponseHandler(flixResponse)
   } else {
     eventEmitter.emit(flixResponse.id, flixResponse)
   }

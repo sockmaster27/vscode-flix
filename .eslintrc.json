@@ -20,5 +20,17 @@
     "@typescript-eslint/no-non-null-assertion": 0,
     "@typescript-eslint/no-var-requires": 0,
     "@typescript-eslint/ban-ts-comment": 0
-  }
+  },
+  "overrides": [
+    {
+      "files": ["*.ts"],
+      "parserOptions": {
+        "project": ["./client/tsconfig.json", "./server/tsconfig.json", "./test/tsconfig.json"]
+      },
+      "rules": {
+        "@typescript-eslint/no-floating-promises": "warn",
+        "@typescript-eslint/no-misused-promises": "warn"
+      }
+    }
+  ]
 }

@@ -150,7 +150,7 @@ function emptyQueue() {
   queueRunning = false
 }
 
-export async function processQueue() {
+export function processQueue() {
   // console.warn('[[debug:ProcessQueue]]: ' + _.map('request', priorityQueue).join(', ') + ' || ' + _.map('request', taskQueue).join(', '))
   if (!engine.isRunning()) {
     // VSCode might ask us to do things before we're up and running - wait for next processQueue call

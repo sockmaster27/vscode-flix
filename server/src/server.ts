@@ -20,7 +20,7 @@ connection.onInitialize(handlers.handleInitialize)
 connection.onNotification(jobs.Request.internalReplaceConfiguration, handlers.handleReplaceConfiguration)
 
 // Event happens once after either startup or a restart - starts the engine
-connection.onNotification(jobs.Request.internalReady, handlers.handleReady)
+connection.onNotification(jobs.Request.internalReady, i => void handlers.handleReady(i))
 
 // A file has been added or updated
 connection.onNotification(jobs.Request.apiAddUri, handlers.handleAddUri)
@@ -44,7 +44,7 @@ connection.onNotification(jobs.Request.apiRemJar, handlers.handleRemJar)
 connection.onNotification(jobs.Request.lspShowAst, handlers.handleShowAst)
 
 // Cleanup after exit
-connection.onExit(handlers.handleExit)
+connection.onExit(() => void handlers.handleExit())
 
 // The content of a text document has changed. This event is emitted
 // when the text document first opened or when its content has changed.
@@ -98,7 +98,8 @@ connection.listen()
  * @param payload {*} - Anything (can be empty)
  */
 export function sendNotification(notificationType: string, payload?: any) {
-  connection.sendNotification(notificationType, payload)
+  // Do not await
+  void connection.sendNotification(notificationType, payload)
 
   if (typeof payload === 'string') {
     switch (notificationType) {
@@ -125,8 +126,9 @@ export function hasErrors() {
 /**
  * Clear `fileUrisWithErrors` after removing error flags for all `uri`s.
  */
-export function clearDiagnostics() {
-  fileUrisWithErrors.forEach((uri: string) => sendDiagnostics({ uri, diagnostics: [] }))
+export async function clearDiagnostics() {
+  const promises = [...fileUrisWithErrors].map(uri => sendDiagnostics({ uri, diagnostics: [] }))
+  await Promise.allSettled(promises)
   fileUrisWithErrors.clear()
   programHasError = false
 }
@@ -134,12 +136,12 @@ export function clearDiagnostics() {
 /**
  * Proxy for `connection.sendDiagnostics` that also adds the `uri` to `fileUrisWithErrors`.
  */
-export function sendDiagnostics(params: PublishDiagnosticsParams) {
+export async function sendDiagnostics(params: PublishDiagnosticsParams) {
   params.diagnostics.forEach(diagnostic => {
     if (diagnostic.severity && diagnostic.severity < 3) {
       programHasError = true
     }
     fileUrisWithErrors.add(params.uri)
   })
-  connection.sendDiagnostics(params)
+  await connection.sendDiagnostics(params)
 }

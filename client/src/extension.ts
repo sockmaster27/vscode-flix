@@ -67,10 +67,10 @@ async function handleShowAst({ status, result }) {
   if (status === StatusCode.Success) {
     const content: string = '// ' + result.title + '\n\n' + result.text
     const document = await vscode.workspace.openTextDocument({ content: content, language: 'flix' })
-    vscode.window.showTextDocument(document)
+    await vscode.window.showTextDocument(document)
   } else {
     const msg = USER_MESSAGE.CANT_SHOW_AST()
-    vscode.window.showInformationMessage(msg)
+    await vscode.window.showInformationMessage(msg)
   }
 }
 
@@ -104,7 +104,7 @@ async function handleError({ message, actions }: { message: string; actions: Act
   const action = actions.find(a => a.title === selection)
   if (action?.command?.type === 'openFile') {
     const uri = vscode.Uri.file(action.command.path)
-    vscode.window.showTextDocument(uri)
+    await vscode.window.showTextDocument(uri)
   }
 }
 
@@ -153,52 +153,50 @@ export async function activate(context: vscode.ExtensionContext, launchOptions: 
 
   // watch for changes on the file system (delete, create, rename .flix files)
   flixWatcher = vscode.workspace.createFileSystemWatcher(FLIX_GLOB_PATTERN)
-  flixWatcher.onDidDelete((vsCodeUri: vscode.Uri) => {
+  flixWatcher.onDidDelete(async (vsCodeUri: vscode.Uri) => {
     const uri = vsCodeUriToUriString(vsCodeUri)
-    client.sendNotification(jobs.Request.apiRemUri, { uri })
+    await client.sendNotification(jobs.Request.apiRemUri, { uri })
   })
-  flixWatcher.onDidCreate((vsCodeUri: vscode.Uri) => {
+  flixWatcher.onDidCreate(async (vsCodeUri: vscode.Uri) => {
     const uri = vsCodeUriToUriString(vsCodeUri)
-    client.sendNotification(jobs.Request.apiAddUri, { uri })
+    await client.sendNotification(jobs.Request.apiAddUri, { uri })
   })
 
   // watch for changes on the file system (delete, create .fpkg files)
   pkgWatcher = vscode.workspace.createFileSystemWatcher(FPKG_GLOB_PATTERN)
-  pkgWatcher.onDidDelete((vsCodeUri: vscode.Uri) => {
+  pkgWatcher.onDidDelete(async (vsCodeUri: vscode.Uri) => {
     const uri = vsCodeUriToUriString(vsCodeUri)
-    client.sendNotification(jobs.Request.apiRemPkg, { uri })
+    await client.sendNotification(jobs.Request.apiRemPkg, { uri })
   })
-  pkgWatcher.onDidCreate((vsCodeUri: vscode.Uri) => {
+  pkgWatcher.onDidCreate(async (vsCodeUri: vscode.Uri) => {
     const uri = vsCodeUriToUriString(vsCodeUri)
-    client.sendNotification(jobs.Request.apiAddPkg, { uri })
+    await client.sendNotification(jobs.Request.apiAddPkg, { uri })
   })
 
   // watch for changes on the file system (delete, create .jar files)
   pkgWatcher = vscode.workspace.createFileSystemWatcher(JAR_GLOB_PATTERN)
-  pkgWatcher.onDidDelete((vsCodeUri: vscode.Uri) => {
+  pkgWatcher.onDidDelete(async (vsCodeUri: vscode.Uri) => {
     const uri = vsCodeUriToUriString(vsCodeUri)
-    client.sendNotification(jobs.Request.apiRemJar, { uri })
+    await client.sendNotification(jobs.Request.apiRemJar, { uri })
   })
-  pkgWatcher.onDidCreate((vsCodeUri: vscode.Uri) => {
+  pkgWatcher.onDidCreate(async (vsCodeUri: vscode.Uri) => {
     const uri = vsCodeUriToUriString(vsCodeUri)
-    client.sendNotification(jobs.Request.apiAddJar, { uri })
+    await client.sendNotification(jobs.Request.apiAddJar, { uri })
   })
 
   // watch for changes to the flix.toml file
   tomlWatcher = vscode.workspace.createFileSystemWatcher(FLIX_TOML_GLOB_PATTERN)
-  tomlWatcher.onDidChange(() => {
+  tomlWatcher.onDidChange(async () => {
     const { msg, option1, option2 } = USER_MESSAGE.ASK_RELOAD_TOML()
-    const doReload = vscode.window.showInformationMessage(msg, option1, option2)
-    doReload.then(res => {
-      if (res === 'Yes') {
-        makeHandleRestartClient(context, launchOptions)()
-      }
-    })
+    const doReload = await vscode.window.showInformationMessage(msg, option1, option2)
+    if (doReload === 'Yes') {
+      await makeHandleRestartClient(context, launchOptions)()
+    }
   })
 
   vscode.window.onDidChangeActiveTextEditor(handlers.handleChangeEditor)
-  vscode.workspace.onDidChangeConfiguration(() => {
-    client.sendNotification(jobs.Request.internalReplaceConfiguration, getUserConfiguration())
+  vscode.workspace.onDidChangeConfiguration(async () => {
+    await client.sendNotification(jobs.Request.internalReplaceConfiguration, getUserConfiguration())
   })
 
   await startSession(context, launchOptions, client)
@@ -231,11 +229,11 @@ async function startSession(
     shouldUpdateFlix: launchOptions.shouldUpdateFlix,
   })
 
-  // Show a startup progress that times out after 10 (default) seconds
+  // Show a startup progress that times out after 30 (default) seconds
   showStartupProgress()
 
   // Send start notification to the server which actually starts the Flix compiler
-  client.sendNotification(jobs.Request.internalReady, {
+  await client.sendNotification(jobs.Request.internalReady, {
     flixFilename,
     workspaceFolders,
     extensionPath: extensionObject.extensionPath || context.extensionPath,
@@ -248,12 +246,12 @@ async function startSession(
   })
 
   // Handle when server has answered back after getting the notification above
-  client.onNotification(jobs.Request.internalReady, function handler() {
+  client.onNotification(jobs.Request.internalReady, () => {
     // waits for server to answer back after having started successfully
     eventEmitter.emit(jobs.Request.internalReady)
 
     // start the Flix runner (but only after the Flix LSP instance has started.)
-    handlers.createSharedRepl(context, launchOptions)
+    void handlers.createSharedRepl(context, launchOptions)
   })
 
   client.onNotification(jobs.Request.internalFinishedJob, function handler() {
@@ -263,13 +261,13 @@ async function startSession(
 
   client.onNotification(jobs.Request.internalDiagnostics, handlePrintDiagnostics)
 
-  client.onNotification(jobs.Request.internalRestart, makeHandleRestartClient(context))
+  client.onNotification(jobs.Request.internalRestart, () => void makeHandleRestartClient(context))
 
-  client.onNotification(jobs.Request.internalMessage, vscode.window.showInformationMessage)
+  client.onNotification(jobs.Request.internalMessage, () => void vscode.window.showInformationMessage)
 
-  client.onNotification(jobs.Request.internalError, handleError)
+  client.onNotification(jobs.Request.internalError, a => void handleError(a))
 
-  client.onNotification(jobs.Request.lspShowAst, handleShowAst)
+  client.onNotification(jobs.Request.lspShowAst, a => void handleShowAst(a))
 }
 
 export function deactivate(): Thenable<void> | undefined {

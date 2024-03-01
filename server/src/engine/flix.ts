@@ -134,17 +134,20 @@ export async function start(input: StartEngineInput) {
       // initialise websocket, listening to messages and what not
       socket.initialiseSocket({
         uri: webSocketUrl,
-        onOpen: function handleOpen() {
-          flixRunning = true
-          const addUriJobs = _.map(workspaceFiles, uri => ({ uri, request: jobs.Request.apiAddUri }))
-          const addPkgJobs = _.map(workspacePkgs, uri => ({ uri, request: jobs.Request.apiAddPkg }))
-          const addJarJobs = _.map(workspaceJars, uri => ({ uri, request: jobs.Request.apiAddJar }))
-          const Jobs: jobs.Job[] = [...addUriJobs, ...addPkgJobs, ...addJarJobs]
-          queue.initialiseQueues(Jobs)
-          handleVersion()
-          sendNotification(jobs.Request.internalFinishedJob)
+        onOpen: () => {
+          const asyncHandler = async () => {
+            flixRunning = true
+            const addUriJobs = _.map(workspaceFiles, uri => ({ uri, request: jobs.Request.apiAddUri }))
+            const addPkgJobs = _.map(workspacePkgs, uri => ({ uri, request: jobs.Request.apiAddPkg }))
+            const addJarJobs = _.map(workspaceJars, uri => ({ uri, request: jobs.Request.apiAddJar }))
+            const Jobs: jobs.Job[] = [...addUriJobs, ...addPkgJobs, ...addJarJobs]
+            queue.initialiseQueues(Jobs)
+            await handleVersion()
+            sendNotification(jobs.Request.internalFinishedJob)
+          }
+          void asyncHandler()
         },
-        onClose: function handleClose() {
+        onClose: () => {
           flixRunning = false
         },
       })
@@ -170,7 +173,7 @@ function parseArgs(args: string): Array<string> {
 }
 
 export async function stop() {
-  queue.terminateQueue()
+  await queue.terminateQueue()
   await socket.closeSocket()
   if (flixInstance) {
     flixInstance.kill()

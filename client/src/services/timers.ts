@@ -37,9 +37,12 @@ let resolversToCleanUp = {
 export function ensureCleanupEventually(resolver: () => void, timeout = 180) {
   const index = `${indexCounter++}`
   const timer = setTimeout(() => {
-    const msg = USER_MESSAGE.TIMEOUT(timeout)
-    vscode.window.showErrorMessage(msg)
-    resolver()
+    const asyncHandler = async () => {
+      const msg = USER_MESSAGE.TIMEOUT(timeout)
+      await vscode.window.showErrorMessage(msg)
+      resolver()
+    }
+    void asyncHandler()
   }, timeout * 1000)
   resolversToCleanUp[index] = {
     timer,

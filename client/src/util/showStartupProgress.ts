@@ -5,7 +5,8 @@ import * as timers from '../services/timers'
 import { USER_MESSAGE } from './userMessages'
 
 export default function showStartupProgress(timeout: number = 30) {
-  vscode.window.withProgress(
+  // Do not await this function, it will resolve when the flix engine is ready
+  void vscode.window.withProgress(
     {
       location: vscode.ProgressLocation.Notification,
       title: USER_MESSAGE.INFORM_STARTING_FLIX(),

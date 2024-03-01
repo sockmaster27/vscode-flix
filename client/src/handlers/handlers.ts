@@ -16,8 +16,8 @@ let FLIX_TERMINAL: vscode.Terminal | null = null
 let countTerminals: number = 0
 
 export function makeHandleRunJob(client: LanguageClient, request: jobs.Request) {
-  return function handler() {
-    client.sendNotification(request)
+  return async function handler() {
+    await client.sendNotification(request)
   }
 }
 
@@ -32,13 +32,13 @@ export async function createSharedRepl(context: vscode.ExtensionContext, launchO
     for (const element of activeTerminals) {
       if (element.name.substring(0, 4) === `REPL`) {
         FLIX_TERMINAL = element
-        launchReplInTerminal(FLIX_TERMINAL, context, launchOptions)
+        await launchReplInTerminal(FLIX_TERMINAL, context, launchOptions)
         break
       }
     }
   }
 
-  ensureReplExists(context, launchOptions)
+  await ensureReplExists(context, launchOptions)
 }
 
 /**
@@ -51,7 +51,7 @@ async function ensureReplExists(context: vscode.ExtensionContext, launchOptions:
 
   if (missing) {
     FLIX_TERMINAL = vscode.window.createTerminal('REPL')
-    launchReplInTerminal(FLIX_TERMINAL, context, launchOptions)
+    await launchReplInTerminal(FLIX_TERMINAL, context, launchOptions)
   }
 
   vscode.window.onDidCloseTerminal(terminal => {
@@ -263,7 +263,7 @@ async function getJVMCmd(
  *
  * If the new file is not part of the project, it shows a message to the user.
  */
-export function handleChangeEditor(editor: vscode.TextEditor | undefined) {
+export async function handleChangeEditor(editor: vscode.TextEditor | undefined) {
   if (editor === undefined) {
     return
   }
@@ -275,7 +275,7 @@ export function handleChangeEditor(editor: vscode.TextEditor | undefined) {
 
   const included = vscode.languages.match({ pattern: FLIX_GLOB_PATTERN }, editor.document)
   if (!included) {
-    vscode.window.showWarningMessage(USER_MESSAGE.FILE_NOT_PART_OF_PROJECT())
+    await vscode.window.showWarningMessage(USER_MESSAGE.FILE_NOT_PART_OF_PROJECT())
   }
 }
 
@@ -411,17 +411,16 @@ export function makeHandleRunJobWithProgress(
   title: string,
   timeout: number = 180,
 ) {
-  return function handler() {
-    vscode.window.withProgress(
+  return async function handler() {
+    await vscode.window.withProgress(
       {
         location: vscode.ProgressLocation.Notification,
         title,
         cancellable: false,
       },
-      function (_progress) {
+      async () => {
+        await client.sendNotification(request)
         return new Promise(function resolver(resolve, reject) {
-          client.sendNotification(request)
-
           const cancelCleanup = timers.ensureCleanupEventually(reject, timeout)
 
           eventEmitter.on(jobs.Request.internalFinishedJob, function readyHandler() {
@@ -574,7 +573,7 @@ export function showAst(client: LanguageClient) {
       return
     }
 
-    client.sendNotification(jobs.Request.lspShowAst, {
+    await client.sendNotification(jobs.Request.lspShowAst, {
       uri: vscode.window.activeTextEditor.document.uri.fsPath,
       phase: phase,
     })

@@ -94,8 +94,8 @@ export function handleReplaceConfiguration(userConfiguration: engine.UserConfigu
 /**
  * Runs when both client and server are ready.
  */
-export function handleReady(engineInput: engine.StartEngineInput) {
-  engine.start(engineInput)
+export async function handleReady(engineInput: engine.StartEngineInput) {
+  await engine.start(engineInput)
 }
 
 export function handleAddUri({ uri }: UriInput) {
@@ -143,8 +143,8 @@ function makeShowAstResponseHandler(promiseResolver: () => void) {
   }
 }
 
-export function handleExit() {
-  engine.stop()
+export async function handleExit() {
+  await engine.stop()
 }
 
 export function handleChangeContent(params: TextDocumentChangeEvent<TextDocument>) {
@@ -306,8 +306,8 @@ function makeVersionResponseHandler(promiseResolver: () => void) {
  *
  * This is different from the rest of the response handlers in that it isn't tied together with its enqueueing function.
  */
-export function lspCheckResponseHandler({ status, result }: socket.FlixResponse) {
-  clearDiagnostics()
+export async function lspCheckResponseHandler({ status, result }: socket.FlixResponse) {
+  await clearDiagnostics()
   sendNotification(jobs.Request.internalDiagnostics, { status, result })
 
   // TODO: Find out why TS doen't like this
