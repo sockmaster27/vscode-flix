@@ -310,9 +310,9 @@ export async function lspCheckResponseHandler({ status, result }: socket.FlixRes
   await clearDiagnostics()
   sendNotification(jobs.Request.internalDiagnostics, { status, result })
 
-  // TODO: Find out why TS doen't like this
   // @ts-ignore
-  _.each(sendDiagnostics, result)
+  const promises = result.map(d => sendDiagnostics(d))
+  await Promise.allSettled(promises)
 }
 
 /**
